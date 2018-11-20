@@ -1,6 +1,7 @@
 package priv.yanyang.webim.service;
 
 import com.alibaba.fastjson.JSON;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.async.DeferredResult;
@@ -13,13 +14,27 @@ import redis.clients.jedis.JedisPool;
 import java.util.*;
 
 /**
- * 消息服务
+ * <h1>消息服务</h1>
+ * <p>Redis 进行消息存储</p>
  */
 @Service
 public class MessageServiceImpl implements MessageService {
 
+
+    Logger logger = Logger.getLogger(MessageServiceImpl.class);
+
+
     ConcurrentHashMap2<String,MessageNotify> MessageNotifyMap = new ConcurrentHashMap2<String,MessageNotify>();
-    public static int MESSAGE_LIST_SIZE = 10;
+
+    /**
+     * 一个消息列表的大小
+     */
+    public final static int MESSAGE_LIST_SIZE = 100;
+
+    /**
+     * 消息列表存活时间
+     */
+    public final static int MESSAGE_LIST_EXPIRED = 60 * 60;
 
     @Autowired
     private JedisPool jedisPool;
@@ -32,15 +47,17 @@ public class MessageServiceImpl implements MessageService {
      * @param channel
      * @return
      */
-    public List getMessages(int start,String token,String channel,Jedis jedis){
-        List msgs = new ArrayList<Message>();
-
+    public List<String> getMessages(int start,String token,String channel){
+        logger.debug("Method\tMessageServiceImpl.getMessages");
+        List<String> msgs = new ArrayList<String>();
+        Jedis jedis = jedisPool.getResource();
         //获取通道内消息条数
         String msgCountKey = MessageCached.messageCountKey(token,channel);
         String msgCountStr = jedis.get(msgCountKey);
 
         //false 则代表通道内没有一条消息
         if(msgCountStr != null && start > 0) {
+            //TODO
             int msgCount = Integer.valueOf(msgCountStr);
 
             if (start < msgCount) {
@@ -68,57 +85,68 @@ public class MessageServiceImpl implements MessageService {
                 }
             }
         }
-
+        jedis.close();
         return msgs;
     }
 
 
     /**
      * 获取最新消息，如果没有最新消息则等待 <b>waitSecond<b/> 毫秒
-     * @param openKey 开发者key
+     * @param apiKey 开发者key
      * @param channel 开发者自定义 通道
      * @param waitSecond 等待消息时间，超时则返回
      * @param clientId 客户端标识
      * @return
      */
     @Override
-    public DeferredResult<List> get(String openKey, String channel, long waitSecond, String clientId) {
+    public DeferredResult<List> get(final String apiKey,final String channel, long waitSecond, String clientId) {
+        logger.debug("Method\tMessageServiceImpl.get");
 
         DeferredResult<List> deferredResult =  new DeferredResult<List>(waitSecond);
         List msgs = null;
-        String MessageNotifyKey = MessageCached.generatePrefix(openKey,channel);
+        String MessageNotifyKey = MessageCached.generatePrefix(apiKey,channel);
 
         Jedis jedis = jedisPool.getResource();
         //当前已读的消息index
-        int clientMsgIndex = MessageCached.getClientMessageIndex(openKey,channel,clientId,jedis);
-        //等待消息的index
-        boolean isWait = false;
+        int clientMsgIndex = MessageCached.getClientMessageIndex(apiKey,channel,clientId,jedis);
+        boolean isWait = true;
 
         //客户端是第一次连接
         if(clientMsgIndex == 0){
-            MessageCached.setClientMessageIndex(openKey,channel,clientId,jedis,0);
-        }
+            int msgCount = MessageCached.getMessageCount(apiKey,channel,jedis);
+            //如果通道列表消息总数为0
+            isWait = 0 == clientMsgIndex;
 
-        if(clientMsgIndex > 0){
-            msgs = getMessages(clientMsgIndex + 1,openKey,channel,jedis);
-            //true 是没有新消息，所有下面要等待新的消息的到来
-            isWait = msgs.size() == 0 ? true : false;
-        } else{
-            isWait = true;
+            if(!isWait){
+                MessageCached.setClientMessageIndex(apiKey,channel,clientId,jedis,msgCount);
+            }
+            clientMsgIndex = msgCount;
+        }else{// 客户端不是第一次连接
+            //获取最新的消息
+            msgs = getMessages(clientMsgIndex + 1,apiKey,channel);
+            int msgCount = msgs.size();
+            isWait = msgCount == 0 ? true : false;
+            MessageCached.setClientMessageIndex(apiKey,channel,clientId,jedis,clientMsgIndex + msgCount);
         }
 
         //等待新的消息
         if(isWait){
-
-            final Observer obs  = new Observer(){
+            final int waitMessageIndex = clientMsgIndex + 1;
+            Observer obs  = new Observer(){
                 @Override
                 public void update(Observable o, Object msg) {
-                    List msgData = new ArrayList();
-                    msgData.add(JSON.toJSONString(msg));
+                    int newMessageIndex = ((Message)msg).getIndex();
+                    List<String> msgData = null;
+
+                    if(waitMessageIndex == newMessageIndex){
+                        msgData = new ArrayList();
+                        msgData.add(JSON.toJSONString(msg));
+                        Jedis jedis1 = jedisPool.getResource();
+                        MessageCached.setClientMessageIndex(apiKey,channel,clientId,jedis1,newMessageIndex);
+                        jedis1.close();
+                    }
+
                     deferredResult.setResult(msgData);
-                    Jedis jedis1 = jedisPool.getResource();
-                    MessageCached.setClientMessageIndex(openKey,channel,clientId,jedis1,((Message)msg).getIndex());
-                    jedis1.close();
                 }
 
             };
@@ -132,7 +160,6 @@ public class MessageServiceImpl implements MessageService {
 
         }else{//这个是有未读的消息，所以就不用等新的消息啦
             deferredResult.setResult(msgs);
-            MessageCached.setClientMessageIndex(openKey,channel,clientId,jedis,clientMsgIndex + msgs.size());
         }
         jedis.close();
         return deferredResult;
@@ -143,37 +170,47 @@ public class MessageServiceImpl implements MessageService {
      * @param message
      * @return
      */
-    public Message add(Message message){
+    public  Message add(Message message){
+        logger.debug("Method\tMessageServiceImpl.add");
+
         String MessageNotifyKey = MessageCached.generatePrefix(message.getApiKey(),message.getChannel());
 
         Jedis pool = jedisPool.getResource();
 
-
-        //获取当前通道(message.channel 和 message.token) 的消息总数
+        //获取当前通道(message.apiKey 和 message.token) 的消息总数key
         String msgCountKey = MessageCached.messageCountKey(message);
-
-        //消息总数
-        String msgCountStr = pool.get(msgCountKey);
         Integer msgCount = 0;
-        //true 表示有消息
-        if(msgCountStr != null){
-            msgCount = Integer.valueOf(msgCountStr);
+        String msgsKey = null;
+        Integer msgsCount = null;
+
+        synchronized (this){
+            //消息总数
+            String msgCountStr = pool.get(msgCountKey);
+            msgCount = null == msgCountStr ? 1 : Integer.valueOf(msgCountStr) + 1;
+
+            message.setIndex(msgCount);
+            //保存消息 msgCount 作为后缀
+            String msgjson = JSON.toJSONString(message);
+            msgsKey = MessageCached.messageIndexKey(message,(msgCount - 1) / MESSAGE_LIST_SIZE);
+            pool.rpush(msgsKey,msgjson);
+
+            //更新当前通道的消息总数
+            pool.set(msgCountKey,msgCount.toString());
         }
-        msgCount++;
-        message.setIndex(msgCount);
 
-        //保存消息 msgCount 作为后缀
-        String msgjson = JSON.toJSONString(message);
-        pool.rpush(MessageCached.messageIndexKey(message,(msgCount - 1) / MESSAGE_LIST_SIZE),msgjson);
+        /**
+         * 如果是第一次就设置存活时间
+         */
+        if(msgCount % MESSAGE_LIST_SIZE == 0){
+            pool.expire(msgsKey,MESSAGE_LIST_EXPIRED);
+        }
 
-        //更新当前通道的消息总数
-        pool.set(msgCountKey,msgCount.toString());
+        pool.close();
 
         //发布新的消息
         MessageNotify obsser = MessageNotifyMap.getOrPut(MessageNotifyKey,new MessageNotify());
         obsser.notifyAll(message);
         MessageNotifyMap.remove(MessageNotifyKey);
-        pool.close();
         return message;
     }
 

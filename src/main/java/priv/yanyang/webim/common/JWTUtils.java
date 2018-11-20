@@ -38,7 +38,7 @@ public class JWTUtils {
             JWTVerifier verifier = JWT.require(Algorithm.HMAC256(key)).build();
             jwt = verifier.verify(token);
 
-        } catch (UnsupportedEncodingException e) {
+        } catch (Exception e) {
             return null;
         }
 

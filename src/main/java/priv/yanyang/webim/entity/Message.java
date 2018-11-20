@@ -71,4 +71,7 @@ public class Message  {
     public void setType(String type) {
         this.type = type;
     }
+
+
+
 }

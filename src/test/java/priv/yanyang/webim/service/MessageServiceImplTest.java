@@ -25,7 +25,7 @@ public class MessageServiceImplTest {
     @Test
     public void getMessages() {
         Jedis jedis = jedisPool.getResource();
-        List msg = messageServiceImpl.getMessages(3,"xxx","yyy",jedis);
+        List msg = messageServiceImpl.getMessages(3,"xxx","yyy");
         System.out.println("msg.size() = " + msg.size());
     }
 }

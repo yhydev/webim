@@ -36,10 +36,13 @@ public class MessageCached {
 
 
     public static int getMessageCount(String token, String channel,Jedis jedis) {
-        String msgCountStr = jedis.get(messageCountKey(token,channel));
+
+        String uniqueChannel = messageCountKey(token,channel);
+
+        String msgCountStr = jedis.get(uniqueChannel);
         int msgCount = 0;
         if(msgCountStr == null){
-            jedis.set(messageCountKey(token,channel),"0");
+            jedis.set(uniqueChannel,"0");
         }else{
             msgCount = Integer.valueOf(msgCountStr);
         }
