@@ -9,6 +9,7 @@ import org.springframework.web.context.request.async.DeferredResult;
 import priv.yanyang.webim.entity.Message;
 import priv.yanyang.webim.service.MessageService;
 
+import javax.lang.model.type.NoType;
 import java.util.List;
 
 
@@ -16,21 +17,18 @@ import java.util.List;
 @RestController
 public class MessageController {
 
-
-    public final static long WAIT_MSEC = 30000;
-
-
     @Autowired
     private MessageService messageService;
 
     @PostMapping
-    public Message post(Message message){
-        return messageService.add(message);
+    public Object post(Message message){
+        messageService.add(message);
+        return null;
     }
 
     @GetMapping
     public DeferredResult<List> get(Message message,String clientId){
-        return messageService.get(message.getApiKey(),message.getChannel(),WAIT_MSEC,clientId);
+        return messageService.get(message.getApiKey(),message.getChannel(),clientId);
     }
 
 }

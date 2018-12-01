@@ -10,7 +10,7 @@ public class MessageCached {
     }
 
     public static String generatePrefix(String token,String channel){
-        return String.format("token_%s_channel_%s",token,channel);
+        return String.format("apiKey_%s_channel_%s",token,channel);
     }
 
 
@@ -47,23 +47,6 @@ public class MessageCached {
             msgCount = Integer.valueOf(msgCountStr);
         }
         return msgCount;
-    }
-
-    public static int getClientMessageIndex(String token,String channel,String clientId,Jedis jedis){
-        String clientMsgIndexKey = messageClientIndex(token,channel,clientId);
-        String clientMsgIndexStr = jedis.get(clientMsgIndexKey);
-
-        int clientIndex = 0;
-        //true 客户端则是第一次连接
-        if(clientMsgIndexStr != null) {
-            clientIndex = Integer.valueOf(clientMsgIndexStr);
-        }
-        return clientIndex;
-    }
-
-    public static void setClientMessageIndex(String token,String channel,String clientId,Jedis jedis,int index){
-        String key = messageClientIndex(token,channel,clientId);
-        jedis.set(key,String.valueOf(index));
     }
 
 }

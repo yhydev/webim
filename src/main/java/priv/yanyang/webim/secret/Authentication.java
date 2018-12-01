@@ -12,7 +12,6 @@ import pub.yanyang.common.ResponseBody;
 
 import javax.servlet.*;
 import java.io.IOException;
-import java.io.Writer;
 
 /**
  * 认证Filter

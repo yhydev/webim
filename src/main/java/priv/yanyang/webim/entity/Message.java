@@ -5,7 +5,7 @@ import java.util.Date;
 public class Message  {
 
 
-    private Integer index;
+    private Long index;
     private String channel;
     private String content;
     private Date createTime;
@@ -24,11 +24,11 @@ public class Message  {
                 '}';
     }
 
-    public Integer getIndex() {
+    public Long getIndex() {
         return index;
     }
 
-    public void setIndex(Integer index) {
+    public void setIndex(Long index) {
         this.index = index;
     }
 

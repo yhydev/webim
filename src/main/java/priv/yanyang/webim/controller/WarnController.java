@@ -18,7 +18,6 @@ public class WarnController {
 
     @RequestMapping
     public HttpEntity get(String msg,int httpStatus){
-
         return new ResponseEntity(msg,HttpStatus.valueOf(httpStatus));
     }
 

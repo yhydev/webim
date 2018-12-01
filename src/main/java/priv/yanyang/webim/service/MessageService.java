@@ -11,9 +11,9 @@ import java.util.List;
  */
 public interface MessageService {
 
-    DeferredResult<List> get(String token, String channel, long waitSecond, String clientId);
+    DeferredResult<List> get(String token, String channel, String clientId);
 
-    Message add(Message message);
+    void add(Message message);
 
 
 

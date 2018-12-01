@@ -1,10 +1,8 @@
 server:
   port: 8081
 
-jedisConfig:
-  ip: hk01.hsjrzb.com
 
 jedisPoolConfig:
-  maxTotal: 200
-  maxIdle: 100
-  minIdle: 50
+  maxTotal: 500
+  maxIdle: 250
+  minIdle: 120
