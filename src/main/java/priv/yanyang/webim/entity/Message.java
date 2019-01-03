@@ -9,7 +9,6 @@ public class Message  {
     private String channel;
     private String content;
     private Date createTime;
-    private String apiKey;
     private String type;
 
     @Override
@@ -19,7 +18,6 @@ public class Message  {
                 ", channel='" + channel + '\'' +
                 ", content='" + content + '\'' +
                 ", createTime=" + createTime +
-                ", apiKey='" + apiKey + '\'' +
                 ", type='" + type + '\'' +
                 '}';
     }
@@ -56,14 +54,6 @@ public class Message  {
         this.createTime = createTime;
     }
 
-    public String getApiKey() {
-        return apiKey;
-    }
-
-    public void setApiKey(String apiKey) {
-        this.apiKey = apiKey;
-    }
-
     public String getType() {
         return type;
     }
@@ -71,7 +61,4 @@ public class Message  {
     public void setType(String type) {
         this.type = type;
     }
-
-
-
 }

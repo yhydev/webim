@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 jedisConfig:
   ip: hk01.hsjrzb.com
 

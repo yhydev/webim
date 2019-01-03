@@ -6,6 +6,7 @@ import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.JWTPartsParser;
 
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ public class JWTUtils {
         DecodedJWT jwt = null;
         try {
             JWTVerifier verifier = JWT.require(Algorithm.HMAC256(key)).build();
+
             jwt = verifier.verify(token);
 
         } catch (Exception e) {

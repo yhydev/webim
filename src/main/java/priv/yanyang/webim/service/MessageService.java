@@ -13,7 +13,7 @@ public interface MessageService {
 
     DeferredResult<List> get(String token, String channel, String clientId);
 
-    void add(Message message);
+    void add(String apiKey,Message message);
 
 
 

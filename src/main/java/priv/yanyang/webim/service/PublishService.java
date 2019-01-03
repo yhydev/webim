@@ -1,12 +1,9 @@
 package priv.yanyang.webim.service;
 
-
 import pub.yanyang.common.ResponseBody;
 
-public interface OpenApiService {
+public interface PublishService<T> {
 
-    ResponseBody auth(String authToken);
-
-
+    ResponseBody publish(T t);
 
 }

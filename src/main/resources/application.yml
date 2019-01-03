@@ -3,7 +3,13 @@ spring:
     active: dev
 
 
+
 jedisConfig:
   ip: ${REDIS_IP}
+server:
+  servlet:
+    application-display-name:
+
+
 
 
